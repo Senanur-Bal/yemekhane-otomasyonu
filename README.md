@@ -30,13 +30,14 @@ Tarayıcıda: <http://localhost:8080>
 
 ## Klasör yapısı
 
-```
-docker-compose.yml        servisler; uygulama servisi yorum satırında
+```text
+docker-compose.yml        Servisler ve ağ ayarları
 db/init/01_sema.sql       12 tablo, 3 view, 4 stored procedure
 db/init/02_ornek_veri.sql 30 kullanıcı, 52 yemek, 84 menü, ~365 rezervasyon
-db/replica-setup.sh       replikayı bir kez kurar ve salt okunur yapar
-apache/                   Apache 2.4 imajı ve yönlendirme ayarı (MVC / Web API)
-frontend/                 Apache'nin sunduğu HTML/CSS (css/temel.css başlangıç stilleri)
+db/replica-setup.sh       Replikayı bir kez kurar ve salt okunur yapar
+apache/                   Apache 2.4 imajı ve yönlendirme ayarı
+frontend/                 Apache'nin sunduğu HTML/CSS dosyaları
+uygulama/                 Yemekhane uygulama servisi
 ```
 
 `db/init` içindeki dosyalar **yalnızca veritabanı ilk kez oluşturulurken** çalışır. Sonradan
@@ -47,10 +48,10 @@ değiştirirseniz etkisini görmek için `docker compose down -v` ile sıfırlam
 Container'lar birbirine **servis adı ve iç port** ile bağlanır. Dış portlar (3307, 3308) yalnızca
 kendi bilgisayarınızdaki araçlar (DBeaver, MySQL Workbench, terminal) içindir.
 
-| | Uygulamadan (container içi) | Bilgisayarınızdan |
+| Servis | Uygulamadan (container içi) | Bilgisayarınızdan |
 |---|---|---|
-| Yazma (kaynak) | `mysql-primary:3306` | `localhost:3307` |
-| Okuma (replika) | `mysql-replica:3306` | `localhost:3308` |
+| MySQL yazma kaynağı | `mysql-primary:3306` | `localhost:3307` |
+| MySQL okuma replikası | `mysql-replica:3306` | `localhost:3308` |
 | Redis | `redis:6379` | `localhost:6379` |
 | Web | — | `localhost:8080` |
 
@@ -70,14 +71,14 @@ Tüm kullanıcıların şifresi **`Yemek2026!`** (bcrypt, `$2a$`, cost 10).
 |---|---|---|
 | leyla.arslan@kampus.edu.tr | yönetici | yönetici paneli için |
 | murat.kaya@kampus.edu.tr | personel | personel fiyatı |
-| ayse.demir@ogr.kampus.edu.tr | öğrenci | bakiyesi 12,50 TL — "Bakiye yetersiz." hatasını denemek için |
+| ayse.demir@ogr.kampus.edu.tr | öğrenci | bakiyesi 12,50 TL — “Bakiye yetersiz.” hatasını denemek için |
 | mehmet.yildiz@ogr.kampus.edu.tr | öğrenci | normal bakiye |
 
 Diğer kullanıcılar: `SELECT eposta, rol, bakiye FROM kullanicilar;`
 
 **Tarihler kurulum gününe göre üretilir.** Menüler kurulumdan 7 gün önce başlar, 6 gün sonrasına
 kadar uzanır. Haftalar sonra yeni menü kalmadıysa yönetici panelinden menü ekleyin ya da
-`docker compose down -v && docker compose up -d` ile veriyi bugüne göre yeniden üretin.
+`docker compose down -v` ardından `docker compose up -d` ile veriyi bugüne göre yeniden üretin.
 
 ## Veritabanı
 
@@ -86,17 +87,17 @@ kadar uzanır. Haftalar sonra yeni menü kalmadıysa yönetici panelinden menü 
 | Tablo | Kural |
 |---|---|
 | `kullanicilar` | `bakiye >= 0` (CHECK); `ogrenci_no` yalnızca öğrencide dolu (CHECK) |
-| `yemekhaneler` | kapasite, menü başına rezervasyon sınırıdır (Merkez 400, Mühendislik 60) |
+| `yemekhaneler` | Kapasite, menü başına rezervasyon sınırıdır (Merkez 400, Mühendislik 60) |
 | `ogunler` | `son_saat`: rezervasyon/iptal son saati; `servis_baslangic/bitis`: turnike aralığı |
-| `menuler` | yemekhane + tarih + öğün başına tek menü; öğrenci ve personel fiyatı ayrı (yönetici personel fiyatı öder) |
-| `rezervasyonlar` | kişi başına menü başına tek kayıt; iptal edilen kayıt yeniden rezervasyonda tekrar `aktif` olur |
+| `menuler` | Yemekhane + tarih + öğün başına tek menü; öğrenci ve personel fiyatı ayrı |
+| `rezervasyonlar` | Kişi başına menü başına tek kayıt; iptal edilen kayıt yeniden rezervasyonda tekrar `aktif` olur |
 | `bakiye_hareketleri` | `tutar` işaretlidir: yükleme/iade `+`, rezervasyon `−`. Her zaman `bakiye = SUM(tutar)` |
-| `degerlendirmeler` | kişi başına menü başına tek oy, 1–5. "Yalnızca kullanılmış menü" kontrolü uygulamanındır |
+| `degerlendirmeler` | Kişi başına menü başına tek oy, 1–5. “Yalnızca kullanılmış menü” kontrolü uygulamanındır |
 
 ### View'lar
 
 - `v_menu_detay` — menüdeki her yemek için bir satır: yemekhane, öğün, `rezervasyon_son`, fiyatlar,
-  yemek, kategori, `kategori_sira`, kalori, vejetaryen, `alerjenler` (ad listesi), `alerjen_idler`.
+  yemek, kategori, `kategori_sira`, kalori, vejetaryen, `alerjenler` ve `alerjen_idler`.
   Toplam kaloriyi uygulama toplar. Sıralama: `ORDER BY kategori_sira, yemek`.
 - `v_menu_doluluk` — menü başına `kapasite`, `rezerve`, `bos_yer`, `doluluk_yuzde`, `rezervasyon_son`.
 - `v_menu_puan` — menü başına `oy_sayisi`, `ortalama_puan` (oy yoksa NULL).
@@ -117,11 +118,8 @@ Sözleşme:
 - Her yordam kendi transaction'ını açar ve kapatır. **Çağrıyı ayrıca BEGIN/COMMIT içine almayın**,
   autocommit açıkken `CALL` edin.
 - Hata durumunda `SQLSTATE 45000` (MySQL hata kodu **1644**) ve Türkçe mesaj döner. Mesajı
-  değiştirmeden arayüze iletin. Olası mesajlar: `Bakiye yetersiz.`, `Bu menü için rezervasyon süresi doldu.`,
-  `Bu menü için zaten rezervasyonunuz var.`, `Yemekhane kapasitesi dolu.`, `Rezervasyon bulunamadı.`,
-  `Yalnızca aktif rezervasyonlar iptal edilebilir.`, `Bu rezervasyon için iptal süresi doldu.`,
-  `Yükleme tutarı 10 ile 1000 TL arasında olmalıdır.`, `Kullanıcı bulunamadı.`, `Menü bulunamadı.`
-- CHECK kısıtı ihlali (hata kodu 3819) bir programlama hatasıdır, kullanıcıya ham haliyle gösterilmez.
+  değiştirmeden arayüze iletin.
+- CHECK kısıtı ihlali (hata kodu 3819) bir programlama hatasıdır; kullanıcıya ham haliyle gösterilmez.
 - `sp_turnike_gecis` için `zaman` NULL ise şu an kullanılır. Kullanılmış rezervasyon üretmek
   (örneğin değerlendirme ekranını denemek) için belirli bir an verebilirsiniz:
 
@@ -145,6 +143,8 @@ Yordamlar yazma işlemidir; **kaynakta** (`mysql-primary`) çağrılır.
 5. `docker compose up -d --build`
 
 Uygulama henüz yoksa ya da çökmüşse Apache `frontend/hata/503.html` sayfasını gösterir.
+
+Yazma işlemleri (rezervasyon, iptal, bakiye yükleme, değerlendirme ve menü oluşturma) kaynak MySQL sunucusuna (mysql-primary), listeleme ve raporlama işlemleri ise okuma replikasına (mysql-replica) yönlendirilir. Rezervasyondan hemen sonra kullanıcıya gösterilen bakiye, kaynak sunucudaki rezervasyon yordamının döndürdüğü sonuçtan alınır. Kaynak ve replika arasındaki aktarım eşzamansız olduğundan yeni yazma replikaya kısa bir gecikmeyle ulaşabilir; bu sırada replikadan okunan bakiye geçici olarak güncel olmayabilir. Bu nedenle rezervasyonun hemen ardından kaynak sunucudan dönen bakiye gösterilir.
 
 ## Doğrulama komutları (Aşama 1)
 
@@ -172,8 +172,17 @@ docker compose exec mysql-replica mysql -uyemekhane_app -pUyg_2026 yemekhane -e 
 docker compose exec redis redis-cli ping
 ```
 
-Windows PowerShell'de de aynı komutlar çalışır. Komut çıktılarını rapora eklerken parolayı
-komut satırına yazdığınız için çıkan uyarı satırını önemsemeyin.
+Windows PowerShell'de de aynı komutlar çalışır. Parola komut satırında kullanıldığı için MySQL bir güvenlik uyarısı gösterebilir.
+
+### Aşama 1 doğrulama sonucu
+
+- MySQL kaynak, replika, Redis ve Apache frontend servisleri çalışır durumda.
+- `replica-setup` işlemi başarıyla tamamlandı (`Exited (0)`).
+- Replika durumunda `Replica_IO_Running` ve `Replica_SQL_Running` değerleri `Yes`.
+- Kaynakta yapılan bakiye yüklemesi replikada da görüntülendi.
+- Replikaya yazma denemesi salt okunur olduğu için `ERROR 1290` ile engellendi.
+- Redis `PING` komutuna `PONG` yanıtı verdi.
+- Web arayüzü `http://localhost:8080` adresinde açıldı.
 
 ## Migration (Aşama 4)
 
@@ -196,7 +205,7 @@ docker compose up -d        # şema ve örnek veri bugüne göre yeniden kurulur
 ## Sık sorunlar
 
 **`replica-setup` Exited (1)** — Günlüğe bakın: `docker compose logs replica-setup`. Çoğu zaman
-yarım kalmış bir ilk kurulumdur; `docker compose down -v && docker compose up -d` ile düzelir.
+yarım kalmış bir ilk kurulumdur; `docker compose down -v` ardından `docker compose up -d` ile düzelir.
 
 **`bash\r: No such file or directory` ya da `$'\r': command not found`** — Windows'ta Git satır
 sonlarını CRLF'ye çevirmiş. Depodaki `.gitattributes` bunu önler; dosyayı düzenleyicinizde LF olarak
@@ -219,5 +228,6 @@ MySQL Connector/J 8+, mysqlclient).
 container'ında `TZ=Europe/Istanbul` tanımlıdır. Son saat karşılaştırmasını veritabanına bırakın
 (`v_menu_doluluk.rezervasyon_son` ya da yordamın hatası).
 
-**Replikada yeni veri hemen görünmüyor** — Replikasyon eşzamansızdır. Bunun uygulamanızdaki
-etkisini ve çözümünü raporda açıklamanız isteniyor.
+**Replikada yeni veri hemen görünmüyor** — Replikasyon eşzamansızdır. Bu nedenle birincil sunucuda
+yapılan yazma işleminin sonucu replikada kısa bir süre gecikmeli görünebilir. Yazma işlemleri
+`mysql-primary` üzerinde, menü ve rapor gibi okumalar `mysql-replica` üzerinde yapılır.

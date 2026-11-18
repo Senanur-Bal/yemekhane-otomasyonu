@@ -3,68 +3,1521 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Yemekhane Otomasyonu · Başlangıç</title>
+  <title>Yemekhane Otomasyonu</title>
   <link rel="stylesheet" href="/css/temel.css">
+
   <style>
-    /* Yalnızca bu geçici sayfaya ait stiller */
-    .fis {
-      background: var(--yuzey);
-      margin-block: 2rem;
-      padding: 1.5rem var(--bosluk);
-      border-radius: var(--kose);
-      /* yemek fişi görünümü: alt kenarda yırtma çizgisi */
-      border-bottom: 2px dashed var(--cizgi);
+    :root {
+      font-family: system-ui, sans-serif;
+      color: #202a25;
+      background: #f3f6f2;
     }
-    .fis h1 { margin-bottom: 0.25rem; }
-    .fis .alt { color: var(--metin-soluk); margin-bottom: 1.5rem; }
-    .servisler { width: 100%; border-collapse: collapse; font-size: var(--boyut-kucuk); }
-    .servisler th, .servisler td { text-align: left; padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--cizgi); }
-    .servisler td:last-child { white-space: nowrap; }
-    #uygulama-durumu { margin-top: 1.5rem; }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #f3f6f2;
+    }
+
+    [hidden] { display: none !important; }
+
+    .ust {
+      padding: 1.5rem max(1rem, calc((100% - 1120px) / 2));
+      background: #183d32;
+      color: #fff;
+    }
+
+    .marka {
+      margin: 0;
+      color: #c5e6d3;
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .ust h1 {
+      margin: .25rem 0;
+      font-size: clamp(1.6rem, 4vw, 2.3rem);
+    }
+
+    .ust-aciklama {
+      margin: 0;
+      color: #e0eee6;
+    }
+
+    .giris-kutusu {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: .8rem;
+      margin-top: 1.25rem;
+      padding: 1rem;
+      border: 1px solid #477262;
+      border-radius: 12px;
+      background: #204b3e;
+    }
+
+    .giris-kutusu label {
+      display: grid;
+      gap: .35rem;
+      min-width: min(220px, 100%);
+      color: #fff;
+      font-size: .9rem;
+      font-weight: 650;
+    }
+
+    .giris-kutusu input {
+      min-height: 42px;
+      padding: .55rem .7rem;
+      border: 1px solid #bdcbc1;
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    .giris-kutusu button {
+      min-height: 42px;
+      padding: .55rem .85rem;
+      border: 0;
+      border-radius: 8px;
+      background: #c5e6d3;
+      color: #183d32;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .giris-kutusu button:hover { background: #e0eee6; }
+
+    #giris-mesaji {
+      flex-basis: 100%;
+      margin: 0;
+      color: #e0eee6;
+    }
+
+    .sayfa {
+      width: min(1120px, calc(100% - 2rem));
+      margin: 2rem auto;
+    }
+
+    .tanitim { margin-bottom: 1.25rem; }
+
+    .tanitim h2 {
+      margin: .2rem 0;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+    }
+
+    .tanitim p:last-child {
+      margin: 0;
+      color: #617068;
+    }
+
+    .filtreler {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+      background: #fff;
+      border: 1px solid #dce5de;
+      border-radius: 14px;
+    }
+
+    .filtreler label,
+    .form-alani label {
+      display: grid;
+      gap: .4rem;
+      font-size: .9rem;
+      font-weight: 650;
+    }
+
+    select,
+    input,
+    textarea {
+      width: 100%;
+      min-height: 42px;
+      padding: .6rem .75rem;
+      border: 1px solid #bdcbc1;
+      border-radius: 9px;
+      background: #fff;
+      color: inherit;
+      font: inherit;
+    }
+
+    input[type="checkbox"] {
+      width: auto;
+      min-height: auto;
+    }
+
+    .durum {
+      margin: 0 0 1rem;
+      color: #52635a;
+      font-size: .95rem;
+    }
+
+    .icerik {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr);
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+      background: #fff;
+      border: 1px solid #dce5de;
+      border-radius: 14px;
+    }
+
+    .panel-baslik {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+
+    .panel-baslik h3 { margin: 0; }
+    .sayac { color: #617068; font-size: .9rem; }
+    .kartlar { display: grid; gap: .75rem; }
+
+    .menu-karti,
+    .rezervasyon-karti {
+      padding: 1rem;
+      border: 1px solid #e0e8e2;
+      border-radius: 12px;
+      background: #fbfcfb;
+    }
+
+    .menu-karti h4,
+    .rezervasyon-karti h4 {
+      margin: 0 0 .3rem;
+      font-size: 1.05rem;
+    }
+
+    .menu-karti p,
+    .rezervasyon-karti p {
+      margin: .25rem 0;
+      color: #52635a;
+    }
+
+    .etiketler {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      margin: .7rem 0;
+    }
+
+    .etiket {
+      display: inline-block;
+      padding: .25rem .55rem;
+      border-radius: 999px;
+      background: #eaf3ed;
+      color: #28563f;
+      font-size: .82rem;
+    }
+
+    .menu-karti button,
+    .rezervasyon-dugmesi,
+    .rezervasyon-iptal-dugmesi,
+    .panel-dugmesi,
+    .form-alani button,
+    #bakiye-yukleme-formu button,
+    .degerlendirme-formu button {
+      min-height: 42px;
+      padding: .55rem .85rem;
+      border: 0;
+      border-radius: 9px;
+      background: #226344;
+      color: #fff;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .menu-karti button:hover,
+    .rezervasyon-dugmesi:hover,
+    .panel-dugmesi:hover,
+    .form-alani button:hover,
+    #bakiye-yukleme-formu button:hover,
+    .degerlendirme-formu button:hover {
+      background: #174b32;
+    }
+
+    .rezervasyon-iptal-dugmesi {
+      background: #9e3434;
+    }
+
+    .rezervasyon-iptal-dugmesi:hover {
+      background: #7d2525;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: .7;
+    }
+
+    .form-alani {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .form-alani .tam-satir { grid-column: 1 / -1; }
+
+    .yemek-secimleri {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .5rem;
+      max-height: 360px;
+      overflow: auto;
+      padding: .8rem;
+      border: 1px solid #e0e8e2;
+      border-radius: 10px;
+      background: #fbfcfb;
+    }
+
+    .yemek-secimi {
+      display: flex !important;
+      grid-template-columns: none !important;
+      align-items: center;
+      gap: .55rem !important;
+      padding: .45rem;
+      border-radius: 7px;
+      font-weight: 500 !important;
+    }
+
+    .yemek-secimi:hover { background: #edf4ef; }
+
+    #yonetici-menu-mesaji,
+    #bakiye-yukleme-mesaji {
+      margin: .5rem 0 0;
+      color: #52635a;
+    }
+
+    #bakiye-yukleme-formu,
+    .degerlendirme-formu {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: .7rem;
+      margin: 1rem 0;
+      padding: 1rem;
+      border: 1px solid #e0e8e2;
+      border-radius: 10px;
+      background: #fbfcfb;
+    }
+
+    #bakiye-yukleme-formu label,
+    .degerlendirme-formu label {
+      display: grid;
+      gap: .4rem;
+      font-weight: 650;
+    }
+
+    #bakiye-yukleme-formu input,
+    .degerlendirme-formu textarea {
+      width: min(100%, 260px);
+    }
+
+    .degerlendirme-formu select { width: 150px; }
+    .degerlendirme-formu textarea { resize: vertical; }
+
+    #bakiye-yukleme-mesaji {
+      flex-basis: 100%;
+    }
+
+    .bos {
+      padding: 1rem;
+      border-radius: 10px;
+      background: #f5f8f5;
+      color: #617068;
+    }
+
+    .detay h3 {
+      margin: 0 0 .35rem;
+      font-size: 1.35rem;
+    }
+
+    .detay-meta {
+      margin: 0 0 1rem;
+      color: #617068;
+    }
+
+    .ozet {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin: .9rem 0 1.2rem;
+    }
+
+    .rezervasyon-mesaji { color: #52635a; }
+
+    .yemek-listesi {
+      display: grid;
+      gap: .65rem;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .yemek {
+      padding: .8rem;
+      border: 1px solid #e0e8e2;
+      border-radius: 10px;
+    }
+
+    .yemek strong { display: block; }
+
+    .yemek small {
+      display: block;
+      margin-top: .25rem;
+      color: #617068;
+    }
+
+    @media (max-width: 760px) {
+      .filtreler,
+      .form-alani,
+      .icerik {
+        grid-template-columns: 1fr;
+      }
+
+      .form-alani .tam-satir { grid-column: auto; }
+    }
   </style>
 </head>
-<body>
-  <main class="kapsayici">
-    <section class="fis">
-      <h1>Yemekhane Otomasyonu</h1>
-      <p class="alt">Apache çalışıyor. Bu sayfa başlangıç paketine ait; kendi giriş ekranınızla değiştirin.</p>
 
-      <div class="tablo-kaydir">
-        <table class="servisler">
-          <thead>
-            <tr><th>Servis</th><th>Görevi</th><th>Bilgisayarınızdan</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>frontend</td><td>HTML/CSS, yönlendirme</td><td>localhost:8080</td></tr>
-            <tr><td>mysql-primary</td><td>yazma</td><td>localhost:3307</td></tr>
-            <tr><td>mysql-replica</td><td>okuma, salt okunur</td><td>localhost:3308</td></tr>
-            <tr><td>redis</td><td>menü önbelleği, oturum</td><td>localhost:6379</td></tr>
-            <tr><td>uygulama</td><td>sizin yazacağınız servis</td><td>Apache üzerinden</td></tr>
-          </tbody>
-        </table>
+<body>
+  <header class="ust">
+    <p class="marka">Kampüs yaşamı</p>
+    <h1>Yemekhane Otomasyonu</h1>
+    <p class="ust-aciklama">
+      Menüleri incele, yemek ayrıntılarını ve alerjen bilgilerini gör.
+    </p>
+
+    <form id="giris-formu" class="giris-kutusu">
+      <label for="eposta">
+        E-posta
+        <input
+          id="eposta"
+          name="eposta"
+          type="email"
+          autocomplete="username"
+          required
+        >
+      </label>
+
+      <label for="sifre">
+        Şifre
+        <input
+          id="sifre"
+          name="sifre"
+          type="password"
+          autocomplete="current-password"
+          required
+        >
+      </label>
+
+      <button type="submit">Giriş yap</button>
+      <p id="giris-mesaji" role="status"></p>
+    </form>
+
+    <div id="kullanici-alani" class="giris-kutusu" hidden>
+      <span id="kullanici-bilgisi"></span>
+      <button id="rezervasyonlari-goster" type="button">
+        Rezervasyonlarım
+      </button>
+      <button id="bakiye-goster" type="button">
+        Bakiye ve hareketler
+      </button>
+      <button id="degerlendirmeleri-goster" type="button">
+        Değerlendirmelerim
+      </button>
+      <button id="yonetici-menu-goster" type="button" hidden>
+        Menü oluştur
+      </button>
+      <button id="yonetici-raporlari-goster" type="button" hidden>
+        Yönetici raporları
+      </button>
+      <button id="cikis-dugmesi" type="button">Çıkış yap</button>
+    </div>
+  </header>
+
+  <main class="sayfa">
+    <section class="tanitim">
+      <p class="marka">Bugünün ve haftanın seçenekleri</p>
+      <h2>Menüler</h2>
+      <p>Tarih, yemekhane ve öğün seçerek menüleri filtrele.</p>
+    </section>
+
+    <p id="durum" class="durum" role="status">Menüler yükleniyor…</p>
+
+    <section class="filtreler" aria-label="Menü filtreleri">
+      <label for="tarih">
+        Tarih
+        <select id="tarih"></select>
+      </label>
+
+      <label for="yemekhane">
+        Yemekhane
+        <select id="yemekhane"></select>
+      </label>
+
+      <label for="ogun">
+        Öğün
+        <select id="ogun"></select>
+      </label>
+    </section>
+
+    <section id="rezervasyon-paneli" class="panel" hidden>
+      <div class="panel-baslik">
+        <h3>Rezervasyonlarım</h3>
+        <button id="rezervasyonlari-yenile" class="panel-dugmesi" type="button">
+          Yenile
+        </button>
+      </div>
+      <div id="rezervasyon-listesi" class="kartlar"></div>
+    </section>
+
+    <section id="bakiye-paneli" class="panel" hidden>
+      <div class="panel-baslik">
+        <h3>Bakiye ve hareketler</h3>
+        <button id="bakiye-yenile" class="panel-dugmesi" type="button">
+          Yenile
+        </button>
       </div>
 
-      <p id="uygulama-durumu" class="bildirim" role="status">Uygulama servisi kontrol ediliyor…</p>
+      <p id="bakiye-tutari"></p>
+
+      <form id="bakiye-yukleme-formu">
+        <label for="yukleme-tutari">
+          Yüklenecek tutar (10–1000 TL)
+          <input
+            id="yukleme-tutari"
+            name="tutar"
+            type="number"
+            min="10"
+            max="1000"
+            step="0.01"
+            required
+          >
+        </label>
+        <button type="submit">Bakiye yükle</button>
+        <p id="bakiye-yukleme-mesaji" role="status"></p>
+      </form>
+
+      <div id="bakiye-hareketleri" class="kartlar"></div>
     </section>
+
+    <section id="degerlendirme-paneli" class="panel" hidden>
+      <div class="panel-baslik">
+        <h3>Kullandığım menüler</h3>
+        <button
+          id="degerlendirmeleri-yenile"
+          class="panel-dugmesi"
+          type="button"
+        >
+          Yenile
+        </button>
+      </div>
+      <div id="degerlendirme-listesi" class="kartlar"></div>
+    </section>
+
+    <section id="yonetici-menu-paneli" class="panel" hidden>
+      <div class="panel-baslik">
+        <h3>Yeni menü oluştur</h3>
+      </div>
+
+      <form id="yonetici-menu-formu" class="form-alani">
+        <label>
+          Yemekhane
+          <select id="menu-yemekhane" name="yemekhane_id" required></select>
+        </label>
+
+        <label>
+          Tarih
+          <input id="menu-tarih" name="tarih" type="date" required>
+        </label>
+
+        <label>
+          Öğün
+          <select id="menu-ogun" name="ogun_id" required></select>
+        </label>
+
+        <label>
+          Öğrenci fiyatı (TL)
+          <input
+            id="menu-ogrenci-fiyati"
+            name="ogrenci_fiyati"
+            type="number"
+            min="0"
+            step="0.01"
+            required
+          >
+        </label>
+
+        <label>
+          Personel fiyatı (TL)
+          <input
+            id="menu-personel-fiyati"
+            name="personel_fiyati"
+            type="number"
+            min="0"
+            step="0.01"
+            required
+          >
+        </label>
+
+        <div class="tam-satir">
+          <strong>Menü yemekleri</strong>
+          <div
+            id="menu-yemek-secimleri"
+            class="yemek-secimleri"
+            aria-label="Menüye eklenecek yemekler"
+          ></div>
+        </div>
+
+        <div class="tam-satir">
+          <button type="submit">Menüyü kaydet</button>
+          <p id="yonetici-menu-mesaji" role="status"></p>
+        </div>
+      </form>
+    </section>
+
+    <section id="yonetici-rapor-paneli" class="panel" hidden>
+      <div class="panel-baslik">
+        <h3>Yönetici raporları</h3>
+        <button
+          id="yonetici-raporlari-yenile"
+          class="panel-dugmesi"
+          type="button"
+        >
+          Yenile
+        </button>
+      </div>
+      <div id="yonetici-rapor-listesi" class="kartlar"></div>
+    </section>
+
+    <div class="icerik">
+      <section class="panel">
+        <div class="panel-baslik">
+          <h3>Menü seçenekleri</h3>
+          <span id="sayac" class="sayac"></span>
+        </div>
+        <div id="menu-listesi" class="kartlar" aria-live="polite"></div>
+      </section>
+
+      <aside id="menu-detay" class="panel detay" aria-live="polite">
+        <div class="bos">Ayrıntılarını görmek için bir menü seç.</div>
+      </aside>
+    </div>
   </main>
 
   <script>
-    // Web API modunda /api/ isteği uygulamaya gider. 502/503 ise uygulama yok ya da çalışmıyor.
-    const kutu = document.getElementById('uygulama-durumu');
-    fetch('/api/', { headers: { Accept: 'application/json' } })
-      .then(yanit => {
-        if (yanit.status === 502 || yanit.status === 503) {
-          kutu.textContent = 'Uygulama servisine ulaşılamıyor. docker-compose.yml içindeki uygulama servisini ekleyip "docker compose up -d" çalıştırın.';
-          kutu.classList.add('bildirim-hata');
-        } else {
-          kutu.textContent = 'Uygulama servisi yanıt veriyor (HTTP ' + yanit.status + ').';
-          kutu.classList.add('bildirim-basari');
-        }
-      })
-      .catch(() => {
-        kutu.textContent = 'İstek gönderilemedi. Apache günlüğüne bakın: docker compose logs frontend';
-        kutu.classList.add('bildirim-hata');
+    const durumAlani = document.getElementById("durum");
+    const listeAlani = document.getElementById("menu-listesi");
+    const detayAlani = document.getElementById("menu-detay");
+    const sayacAlani = document.getElementById("sayac");
+    const tarihSecimi = document.getElementById("tarih");
+    const yemekhaneSecimi = document.getElementById("yemekhane");
+    const ogunSecimi = document.getElementById("ogun");
+
+    const girisFormu = document.getElementById("giris-formu");
+    const girisMesaji = document.getElementById("giris-mesaji");
+    const kullaniciAlani = document.getElementById("kullanici-alani");
+    const kullaniciBilgisi = document.getElementById("kullanici-bilgisi");
+    const cikisDugmesi = document.getElementById("cikis-dugmesi");
+
+    const rezervasyonPaneli = document.getElementById("rezervasyon-paneli");
+    const rezervasyonListesi = document.getElementById("rezervasyon-listesi");
+    const rezervasyonlariGosterDugmesi =
+      document.getElementById("rezervasyonlari-goster");
+    const rezervasyonlariYenileDugmesi =
+      document.getElementById("rezervasyonlari-yenile");
+
+    const bakiyePaneli = document.getElementById("bakiye-paneli");
+    const bakiyeGosterDugmesi = document.getElementById("bakiye-goster");
+    const bakiyeYenileDugmesi = document.getElementById("bakiye-yenile");
+    const bakiyeTutari = document.getElementById("bakiye-tutari");
+    const bakiyeHareketleri = document.getElementById("bakiye-hareketleri");
+    const bakiyeYuklemeFormu =
+      document.getElementById("bakiye-yukleme-formu");
+    const bakiyeYuklemeMesaji =
+      document.getElementById("bakiye-yukleme-mesaji");
+
+    const degerlendirmePaneli =
+      document.getElementById("degerlendirme-paneli");
+    const degerlendirmeleriGosterDugmesi =
+      document.getElementById("degerlendirmeleri-goster");
+    const degerlendirmeleriYenileDugmesi =
+      document.getElementById("degerlendirmeleri-yenile");
+    const degerlendirmeListesi =
+      document.getElementById("degerlendirme-listesi");
+
+    const yoneticiMenuDugmesi =
+      document.getElementById("yonetici-menu-goster");
+    const yoneticiMenuPaneli =
+      document.getElementById("yonetici-menu-paneli");
+    const yoneticiMenuFormu =
+      document.getElementById("yonetici-menu-formu");
+    const yoneticiMenuMesaji =
+      document.getElementById("yonetici-menu-mesaji");
+    const menuYemekhaneSecimi =
+      document.getElementById("menu-yemekhane");
+    const menuTarihAlani = document.getElementById("menu-tarih");
+    const menuOgunSecimi = document.getElementById("menu-ogun");
+    const menuYemekSecimleri =
+      document.getElementById("menu-yemek-secimleri");
+
+    const yoneticiRaporDugmesi =
+      document.getElementById("yonetici-raporlari-goster");
+    const yoneticiRaporPaneli =
+      document.getElementById("yonetici-rapor-paneli");
+    const yoneticiRaporYenileDugmesi =
+      document.getElementById("yonetici-raporlari-yenile");
+    const yoneticiRaporListesi =
+      document.getElementById("yonetici-rapor-listesi");
+
+    let menuler = [];
+
+    async function apiIste(url, ayarlar = {}) {
+      const yanit = await fetch(url, {
+        headers: { Accept: "application/json", ...(ayarlar.headers || {}) },
+        ...ayarlar
       });
+
+      const veri = await yanit.json();
+
+      if (!yanit.ok) {
+        throw new Error(veri.hata || "İstek tamamlanamadı.");
+      }
+
+      return veri;
+    }
+
+    function yerelBugun() {
+      const bugun = new Date();
+      const ay = String(bugun.getMonth() + 1).padStart(2, "0");
+      const gun = String(bugun.getDate()).padStart(2, "0");
+      return `${bugun.getFullYear()}-${ay}-${gun}`;
+    }
+
+    function tarihYaz(tarih) {
+      const [yil, ay, gun] = tarih.split("-").map(Number);
+
+      return new Intl.DateTimeFormat("tr-TR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }).format(new Date(yil, ay - 1, gun));
+    }
+
+    function secenekEkle(select, deger, yazi) {
+      const secenek = document.createElement("option");
+      secenek.value = deger;
+      secenek.textContent = yazi;
+      select.appendChild(secenek);
+    }
+
+    function filtreleriHazirla() {
+      const tarihler = [...new Set(menuler.map(menu => menu.tarih))].sort();
+
+      tarihSecimi.replaceChildren();
+      tarihler.forEach(tarih => {
+        secenekEkle(tarihSecimi, tarih, tarihYaz(tarih));
+      });
+
+      tarihSecimi.value = tarihler.includes(yerelBugun())
+        ? yerelBugun()
+        : (tarihler[0] || "");
+
+      yemekhaneSecimi.replaceChildren();
+      secenekEkle(yemekhaneSecimi, "", "Tüm yemekhaneler");
+
+      const yemekhaneler = new Map();
+      menuler.forEach(menu => {
+        yemekhaneler.set(String(menu.yemekhane_id), menu.yemekhane);
+      });
+
+      [...yemekhaneler.entries()].forEach(([id, ad]) => {
+        secenekEkle(yemekhaneSecimi, id, ad);
+      });
+
+      ogunSecimi.replaceChildren();
+      secenekEkle(ogunSecimi, "", "Tüm öğünler");
+
+      const ogunler = new Map();
+      menuler.forEach(menu => {
+        ogunler.set(String(menu.ogun_id), menu.ogun);
+      });
+
+      [...ogunler.entries()].forEach(([id, ad]) => {
+        secenekEkle(ogunSecimi, id, ad);
+      });
+    }
+
+    function menuListesiniGoster() {
+      listeAlani.replaceChildren();
+
+      const filtrelenmis = menuler.filter(menu =>
+        (!tarihSecimi.value || menu.tarih === tarihSecimi.value) &&
+        (!yemekhaneSecimi.value ||
+          String(menu.yemekhane_id) === yemekhaneSecimi.value) &&
+        (!ogunSecimi.value || String(menu.ogun_id) === ogunSecimi.value)
+      );
+
+      sayacAlani.textContent = `${filtrelenmis.length} menü`;
+
+      if (filtrelenmis.length === 0) {
+        const mesaj = document.createElement("p");
+        mesaj.className = "bos";
+        mesaj.textContent = "Bu seçimlere uygun menü bulunamadı.";
+        listeAlani.appendChild(mesaj);
+        return;
+      }
+
+      filtrelenmis.forEach(menu => {
+        const kart = document.createElement("article");
+        kart.className = "menu-karti";
+
+        const baslik = document.createElement("h4");
+        baslik.textContent = `${menu.ogun} · ${menu.yemekhane}`;
+
+        const tarih = document.createElement("p");
+        tarih.textContent = tarihYaz(menu.tarih);
+
+        const etiketler = document.createElement("div");
+        etiketler.className = "etiketler";
+
+        const bosYer = document.createElement("span");
+        bosYer.className = "etiket";
+        bosYer.textContent = `${menu.bos_yer} boş yer`;
+
+        const doluluk = document.createElement("span");
+        doluluk.className = "etiket";
+        doluluk.textContent =
+          `%${Number(menu.doluluk_yuzde).toLocaleString("tr-TR")} dolu`;
+
+        etiketler.append(bosYer, doluluk);
+
+        const dugme = document.createElement("button");
+        dugme.type = "button";
+        dugme.textContent = "Menü ayrıntıları";
+        dugme.addEventListener("click", () => {
+          menuDetayiniGoster(menu.menu_id);
+        });
+
+        kart.append(baslik, tarih, etiketler, dugme);
+        listeAlani.appendChild(kart);
+      });
+    }
+
+    async function menuleriYenile() {
+      const veri = await apiIste("/api/menuler");
+      menuler = veri.menuler || [];
+      filtreleriHazirla();
+      menuListesiniGoster();
+      durumAlani.textContent = "Menüler hazır.";
+    }
+
+    async function menuDetayiniGoster(menuId) {
+      detayAlani.replaceChildren();
+
+      const yukleniyor = document.createElement("p");
+      yukleniyor.className = "bos";
+      yukleniyor.textContent = "Menü ayrıntıları yükleniyor…";
+      detayAlani.appendChild(yukleniyor);
+
+      try {
+        const veri = await apiIste(`/api/menuler/${menuId}`);
+        const menu = veri.menu;
+        detayAlani.replaceChildren();
+
+        const baslik = document.createElement("h3");
+        baslik.textContent = `${menu.ogun} menüsü`;
+
+        const meta = document.createElement("p");
+        meta.className = "detay-meta";
+        meta.textContent = `${tarihYaz(menu.tarih)} · ${menu.yemekhane}`;
+
+        const ozet = document.createElement("div");
+        ozet.className = "ozet";
+
+        [
+          `${menu.toplam_kalori} kcal`,
+          `Öğrenci ${Number(menu.ogrenci_fiyati).toLocaleString("tr-TR")} TL`,
+          `Personel ${Number(menu.personel_fiyati).toLocaleString("tr-TR")} TL`
+        ].forEach(yazi => {
+          const etiket = document.createElement("span");
+          etiket.className = "etiket";
+          etiket.textContent = yazi;
+          ozet.appendChild(etiket);
+        });
+
+        const rezervasyonDugmesi = document.createElement("button");
+        rezervasyonDugmesi.type = "button";
+        rezervasyonDugmesi.className = "rezervasyon-dugmesi";
+        rezervasyonDugmesi.textContent = "Bu menüyü rezerve et";
+
+        const rezervasyonMesaji = document.createElement("p");
+        rezervasyonMesaji.className = "rezervasyon-mesaji";
+        rezervasyonMesaji.setAttribute("role", "status");
+
+        rezervasyonDugmesi.addEventListener("click", async () => {
+          rezervasyonDugmesi.disabled = true;
+          rezervasyonMesaji.textContent = "Rezervasyon yapılıyor…";
+
+          try {
+            const sonuc = await apiIste("/api/rezervasyonlar", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ menu_id: menu.id })
+            });
+
+            const rezervasyon = sonuc.rezervasyon || {};
+            rezervasyonMesaji.textContent =
+              `Rezervasyon oluşturuldu. No: ${rezervasyon.rezervasyon_id}, ` +
+              `ücret: ${rezervasyon.ucret} TL, ` +
+              `yeni bakiye: ${rezervasyon.bakiye} TL.`;
+
+            if (!rezervasyonPaneli.hidden) {
+              await rezervasyonlariYukle();
+            }
+          } catch (hata) {
+            rezervasyonMesaji.textContent = hata.message;
+          } finally {
+            rezervasyonDugmesi.disabled = false;
+          }
+        });
+
+        const yemekBaslik = document.createElement("h4");
+        yemekBaslik.textContent = "Yemekler";
+
+        const yemekListesi = document.createElement("ul");
+        yemekListesi.className = "yemek-listesi";
+
+        (veri.yemekler || []).forEach(yemek => {
+          const satir = document.createElement("li");
+          satir.className = "yemek";
+
+          const ad = document.createElement("strong");
+          ad.textContent = yemek.yemek;
+
+          const kategori = document.createElement("small");
+          kategori.textContent =
+            `${yemek.kategori} · ${yemek.kalori} kcal` +
+            (yemek.vejetaryen ? " · Vejetaryen" : "");
+
+          const alerjen = document.createElement("small");
+          alerjen.textContent = yemek.alerjenler.length
+            ? `Alerjenler: ${yemek.alerjenler.join(", ")}`
+            : "Alerjen bilgisi yok";
+
+          satir.append(ad, kategori, alerjen);
+          yemekListesi.appendChild(satir);
+        });
+
+        detayAlani.append(
+          baslik,
+          meta,
+          ozet,
+          rezervasyonDugmesi,
+          rezervasyonMesaji,
+          yemekBaslik,
+          yemekListesi
+        );
+      } catch (hata) {
+        detayAlani.replaceChildren();
+        const mesaj = document.createElement("p");
+        mesaj.className = "bos";
+        mesaj.textContent = hata.message;
+        detayAlani.appendChild(mesaj);
+      }
+    }
+
+    function rezervasyonKartiOlustur(rezervasyon) {
+      const kart = document.createElement("article");
+      kart.className = "rezervasyon-karti";
+
+      const baslik = document.createElement("h4");
+      baslik.textContent = `${rezervasyon.ogun} · ${rezervasyon.yemekhane}`;
+
+      const tarih = document.createElement("p");
+      tarih.textContent = tarihYaz(rezervasyon.tarih);
+
+      const ucret = document.createElement("p");
+      ucret.textContent =
+        `Ücret: ${Number(rezervasyon.ucret).toLocaleString("tr-TR")} TL`;
+
+      const durumAdlari = {
+        aktif: "Aktif",
+        kullanildi: "Kullanıldı",
+        iptal: "İptal edildi"
+      };
+
+      const durum = document.createElement("p");
+      durum.textContent =
+        `Durum: ${durumAdlari[rezervasyon.durum] || rezervasyon.durum}`;
+
+      kart.append(baslik, tarih, ucret, durum);
+
+      if (rezervasyon.durum === "aktif") {
+        const iptalDugmesi = document.createElement("button");
+        iptalDugmesi.type = "button";
+        iptalDugmesi.className = "rezervasyon-iptal-dugmesi";
+        iptalDugmesi.textContent = "Rezervasyonu iptal et";
+
+        iptalDugmesi.addEventListener("click", async () => {
+          iptalDugmesi.disabled = true;
+
+          try {
+            await apiIste(
+              `/api/rezervasyonlar/${rezervasyon.rezervasyon_id}`,
+              { method: "DELETE" }
+            );
+            await rezervasyonlariYukle();
+            await bakiyeBilgisiniYukle();
+          } catch (hata) {
+            alert(hata.message);
+            iptalDugmesi.disabled = false;
+          }
+        });
+
+        kart.appendChild(iptalDugmesi);
+      }
+
+      return kart;
+    }
+
+    async function rezervasyonlariYukle() {
+      rezervasyonListesi.replaceChildren();
+
+      try {
+        const veri = await apiIste("/api/rezervasyonlar");
+
+        if (!veri.rezervasyonlar || veri.rezervasyonlar.length === 0) {
+          const mesaj = document.createElement("p");
+          mesaj.className = "bos";
+          mesaj.textContent = "Henüz rezervasyonunuz bulunmuyor.";
+          rezervasyonListesi.appendChild(mesaj);
+          return;
+        }
+
+        veri.rezervasyonlar.forEach(rezervasyon => {
+          rezervasyonListesi.appendChild(
+            rezervasyonKartiOlustur(rezervasyon)
+          );
+        });
+      } catch (hata) {
+        const mesaj = document.createElement("p");
+        mesaj.className = "bos";
+        mesaj.textContent = hata.message;
+        rezervasyonListesi.appendChild(mesaj);
+      }
+    }
+
+    async function bakiyeBilgisiniYukle() {
+      bakiyeHareketleri.replaceChildren();
+      bakiyeTutari.textContent = "Bakiye yükleniyor…";
+
+      try {
+        const veri = await apiIste("/api/bakiye");
+        bakiyeTutari.textContent =
+          `Mevcut bakiye: ${Number(veri.bakiye).toLocaleString("tr-TR")} TL`;
+
+        if (!veri.hareketler || veri.hareketler.length === 0) {
+          const mesaj = document.createElement("p");
+          mesaj.className = "bos";
+          mesaj.textContent = "Bakiye hareketi bulunmuyor.";
+          bakiyeHareketleri.appendChild(mesaj);
+          return;
+        }
+
+        const turAdlari = {
+          yukleme: "Bakiye yükleme",
+          rezervasyon: "Rezervasyon",
+          iade: "İade"
+        };
+
+        veri.hareketler.forEach(hareket => {
+          const kart = document.createElement("article");
+          kart.className = "rezervasyon-karti";
+
+          const baslik = document.createElement("h4");
+          baslik.textContent = turAdlari[hareket.tur] || hareket.tur;
+
+          const tutar = document.createElement("p");
+          const isaret = Number(hareket.tutar) > 0 ? "+" : "";
+          tutar.textContent =
+            `Tutar: ${isaret}${Number(hareket.tutar).toLocaleString("tr-TR")} TL`;
+
+          const aciklama = document.createElement("p");
+          aciklama.textContent = hareket.aciklama || "Açıklama yok";
+
+          const tarih = document.createElement("p");
+          tarih.textContent = hareket.olusturma;
+
+          kart.append(baslik, tutar, aciklama, tarih);
+          bakiyeHareketleri.appendChild(kart);
+        });
+      } catch (hata) {
+        bakiyeTutari.textContent = hata.message;
+      }
+    }
+
+    async function degerlendirmeleriYukle() {
+      degerlendirmeListesi.replaceChildren();
+
+      try {
+        const veri = await apiIste("/api/degerlendirmelerim");
+
+        if (!veri.menuler || veri.menuler.length === 0) {
+          const mesaj = document.createElement("p");
+          mesaj.className = "bos";
+          mesaj.textContent =
+            "Değerlendirebileceğiniz kullanılmış menü bulunmuyor.";
+          degerlendirmeListesi.appendChild(mesaj);
+          return;
+        }
+
+        veri.menuler.forEach(menu => {
+          const kart = document.createElement("article");
+          kart.className = "rezervasyon-karti";
+
+          const baslik = document.createElement("h4");
+          baslik.textContent = `${menu.ogun} · ${menu.yemekhane}`;
+
+          const tarih = document.createElement("p");
+          tarih.textContent = tarihYaz(menu.tarih);
+
+          const form = document.createElement("form");
+          form.className = "degerlendirme-formu";
+
+          const puanLabel = document.createElement("label");
+          puanLabel.textContent = "Puan (1–5)";
+
+          const puanSecimi = document.createElement("select");
+          puanSecimi.required = true;
+
+          for (let puan = 1; puan <= 5; puan++) {
+            const secenek = document.createElement("option");
+            secenek.value = String(puan);
+            secenek.textContent = `${puan} / 5`;
+            puanSecimi.appendChild(secenek);
+          }
+
+          if (menu.puan) puanSecimi.value = String(menu.puan);
+          puanLabel.appendChild(puanSecimi);
+
+          const yorumLabel = document.createElement("label");
+          yorumLabel.textContent = "Yorum (isteğe bağlı)";
+
+          const yorumAlani = document.createElement("textarea");
+          yorumAlani.maxLength = 500;
+          yorumAlani.rows = 3;
+          yorumAlani.value = menu.yorum || "";
+          yorumLabel.appendChild(yorumAlani);
+
+          const kaydetDugmesi = document.createElement("button");
+          kaydetDugmesi.type = "submit";
+          kaydetDugmesi.textContent = menu.puan
+            ? "Değerlendirmeyi güncelle"
+            : "Değerlendirmeyi kaydet";
+
+          const sonucMesaji = document.createElement("p");
+          sonucMesaji.setAttribute("role", "status");
+
+          form.append(puanLabel, yorumLabel, kaydetDugmesi, sonucMesaji);
+          kart.append(baslik, tarih, form);
+          degerlendirmeListesi.appendChild(kart);
+
+          form.addEventListener("submit", async olay => {
+            olay.preventDefault();
+            kaydetDugmesi.disabled = true;
+            sonucMesaji.textContent = "Kaydediliyor…";
+
+            try {
+              await apiIste("/api/degerlendirmeler", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  menu_id: menu.menu_id,
+                  puan: puanSecimi.value,
+                  yorum: yorumAlani.value
+                })
+              });
+
+              menu.puan = Number(puanSecimi.value);
+              menu.yorum = yorumAlani.value;
+              kaydetDugmesi.textContent = "Değerlendirmeyi güncelle";
+              sonucMesaji.textContent = "Değerlendirmeniz kaydedildi.";
+            } catch (hata) {
+              sonucMesaji.textContent = hata.message;
+            } finally {
+              kaydetDugmesi.disabled = false;
+            }
+          });
+        });
+      } catch (hata) {
+        const mesaj = document.createElement("p");
+        mesaj.className = "bos";
+        mesaj.textContent = hata.message;
+        degerlendirmeListesi.appendChild(mesaj);
+      }
+    }
+
+    async function yoneticiRaporlariniYukle() {
+      yoneticiRaporListesi.replaceChildren();
+
+      try {
+        const veri = await apiIste("/api/yonetici/raporlar");
+
+        if (!veri.raporlar || veri.raporlar.length === 0) {
+          const mesaj = document.createElement("p");
+          mesaj.className = "bos";
+          mesaj.textContent = "Gösterilecek rapor bulunmuyor.";
+          yoneticiRaporListesi.appendChild(mesaj);
+          return;
+        }
+
+        veri.raporlar.forEach(rapor => {
+          const kart = document.createElement("article");
+          kart.className = "rezervasyon-karti";
+
+          const baslik = document.createElement("h4");
+          baslik.textContent = `${rapor.ogun} · ${rapor.yemekhane}`;
+
+          const tarih = document.createElement("p");
+          tarih.textContent = tarihYaz(rapor.tarih);
+
+          const kapasite = document.createElement("p");
+          kapasite.textContent =
+            `Rezervasyon: ${rapor.rezerve} · Boş yer: ${rapor.bos_yer} · ` +
+            `Kapasite: ${rapor.kapasite}`;
+
+          const doluluk = document.createElement("p");
+          doluluk.textContent =
+            `Doluluk: %${Number(rapor.doluluk_yuzde).toLocaleString("tr-TR")}`;
+
+          const ortalama = rapor.ortalama_puan == null
+            ? "Henüz puan yok"
+            : `${Number(rapor.ortalama_puan).toLocaleString("tr-TR")} / 5`;
+
+          const puan = document.createElement("p");
+          puan.textContent =
+            `Değerlendirme: ${ortalama} · Oy: ${rapor.oy_sayisi}`;
+
+          kart.append(baslik, tarih, kapasite, doluluk, puan);
+          yoneticiRaporListesi.appendChild(kart);
+        });
+      } catch (hata) {
+        const mesaj = document.createElement("p");
+        mesaj.className = "bos";
+        mesaj.textContent = hata.message;
+        yoneticiRaporListesi.appendChild(mesaj);
+      }
+    }
+
+    async function yoneticiFormSecenekleriniYukle() {
+      menuYemekhaneSecimi.replaceChildren();
+      menuOgunSecimi.replaceChildren();
+      menuYemekSecimleri.replaceChildren();
+
+      const veri = await apiIste("/api/yonetici/form-verileri");
+
+      (veri.yemekhaneler || []).forEach(yemekhane => {
+        secenekEkle(
+          menuYemekhaneSecimi,
+          yemekhane.id,
+          yemekhane.ad
+        );
+      });
+
+      (veri.ogunler || []).forEach(ogun => {
+        secenekEkle(menuOgunSecimi, ogun.id, ogun.ad);
+      });
+
+      (veri.yemekler || []).forEach(yemek => {
+        const etiket = document.createElement("label");
+        etiket.className = "yemek-secimi";
+
+        const onay = document.createElement("input");
+        onay.type = "checkbox";
+        onay.name = "yemek_idleri";
+        onay.value = yemek.id;
+
+        const yazi = document.createElement("span");
+        yazi.textContent =
+          `${yemek.kategori}: ${yemek.ad} (${yemek.kalori} kcal)` +
+          (yemek.vejetaryen ? " · Vejetaryen" : "");
+
+        etiket.append(onay, yazi);
+        menuYemekSecimleri.appendChild(etiket);
+      });
+    }
+
+    async function menuyuKaydet(olay) {
+      olay.preventDefault();
+      yoneticiMenuMesaji.textContent = "Menü kaydediliyor…";
+
+      const secilenYemekler = [
+        ...menuYemekSecimleri.querySelectorAll(
+          'input[name="yemek_idleri"]:checked'
+        )
+      ].map(onay => Number(onay.value));
+
+      const gonderilecek = {
+        yemekhane_id: menuYemekhaneSecimi.value,
+        tarih: menuTarihAlani.value,
+        ogun_id: menuOgunSecimi.value,
+        ogrenci_fiyati:
+          document.getElementById("menu-ogrenci-fiyati").value,
+        personel_fiyati:
+          document.getElementById("menu-personel-fiyati").value,
+        yemek_idleri: secilenYemekler
+      };
+
+      try {
+        const sonuc = await apiIste("/api/yonetici/menuler", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(gonderilecek)
+        });
+
+        yoneticiMenuMesaji.textContent =
+          `Menü oluşturuldu. Menü numarası: ${sonuc.menu.menu_id}.`;
+
+        yoneticiMenuFormu.reset();
+        menuTarihAlani.min = yerelBugun();
+
+        await menuleriYenile();
+        await yoneticiRaporlariniYukle();
+      } catch (hata) {
+        yoneticiMenuMesaji.textContent = hata.message;
+      }
+    }
+
+    bakiyeYuklemeFormu.addEventListener("submit", async olay => {
+      olay.preventDefault();
+      bakiyeYuklemeMesaji.textContent = "Yükleme yapılıyor…";
+
+      const formVerisi = new FormData(bakiyeYuklemeFormu);
+
+      try {
+        await apiIste("/api/bakiye/yukle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tutar: formVerisi.get("tutar")
+          })
+        });
+
+        bakiyeYuklemeFormu.reset();
+        bakiyeYuklemeMesaji.textContent = "Bakiye yüklendi.";
+        await bakiyeBilgisiniYukle();
+      } catch (hata) {
+        bakiyeYuklemeMesaji.textContent = hata.message;
+      }
+    });
+
+    rezervasyonlariGosterDugmesi.addEventListener("click", async () => {
+      rezervasyonPaneli.hidden = !rezervasyonPaneli.hidden;
+
+      if (!rezervasyonPaneli.hidden) {
+        await rezervasyonlariYukle();
+        rezervasyonPaneli.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+    });
+
+    rezervasyonlariYenileDugmesi.addEventListener(
+      "click",
+      rezervasyonlariYukle
+    );
+
+    bakiyeGosterDugmesi.addEventListener("click", async () => {
+      bakiyePaneli.hidden = !bakiyePaneli.hidden;
+
+      if (!bakiyePaneli.hidden) {
+        await bakiyeBilgisiniYukle();
+        bakiyePaneli.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+    });
+
+    bakiyeYenileDugmesi.addEventListener(
+      "click",
+      bakiyeBilgisiniYukle
+    );
+
+    degerlendirmeleriGosterDugmesi.addEventListener(
+      "click",
+      async () => {
+        degerlendirmePaneli.hidden = !degerlendirmePaneli.hidden;
+
+        if (!degerlendirmePaneli.hidden) {
+          await degerlendirmeleriYukle();
+          degerlendirmePaneli.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        }
+      }
+    );
+
+    degerlendirmeleriYenileDugmesi.addEventListener(
+      "click",
+      degerlendirmeleriYukle
+    );
+
+    yoneticiMenuDugmesi.addEventListener("click", async () => {
+      yoneticiMenuPaneli.hidden = !yoneticiMenuPaneli.hidden;
+
+      if (!yoneticiMenuPaneli.hidden) {
+        yoneticiMenuMesaji.textContent = "";
+
+        try {
+          await yoneticiFormSecenekleriniYukle();
+        } catch (hata) {
+          yoneticiMenuMesaji.textContent = hata.message;
+        }
+
+        menuTarihAlani.min = yerelBugun();
+        yoneticiMenuPaneli.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+    });
+
+    yoneticiMenuFormu.addEventListener("submit", menuyuKaydet);
+
+    yoneticiRaporDugmesi.addEventListener("click", async () => {
+      yoneticiRaporPaneli.hidden = !yoneticiRaporPaneli.hidden;
+
+      if (!yoneticiRaporPaneli.hidden) {
+        await yoneticiRaporlariniYukle();
+        yoneticiRaporPaneli.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+    });
+
+    yoneticiRaporYenileDugmesi.addEventListener(
+      "click",
+      yoneticiRaporlariniYukle
+    );
+
+    async function oturumuKontrolEt() {
+      try {
+        const veri = await apiIste("/api/oturum");
+
+        if (veri.oturum_acik && veri.kullanici) {
+          const kullanici = veri.kullanici;
+
+          kullaniciBilgisi.textContent =
+            `Giriş yapıldı: ${kullanici.ad} ${kullanici.soyad} ` +
+            `(${kullanici.rol})`;
+
+          girisFormu.hidden = true;
+          kullaniciAlani.hidden = false;
+
+          const yoneticiMi = kullanici.rol === "yonetici";
+          yoneticiMenuDugmesi.hidden = !yoneticiMi;
+          yoneticiRaporDugmesi.hidden = !yoneticiMi;
+        } else {
+          girisFormu.hidden = false;
+          kullaniciAlani.hidden = true;
+          yoneticiMenuDugmesi.hidden = true;
+          yoneticiRaporDugmesi.hidden = true;
+          rezervasyonPaneli.hidden = true;
+          bakiyePaneli.hidden = true;
+          degerlendirmePaneli.hidden = true;
+          yoneticiMenuPaneli.hidden = true;
+          yoneticiRaporPaneli.hidden = true;
+        }
+      } catch (_hata) {
+        girisMesaji.textContent = "Oturum bilgisi alınamadı.";
+      }
+    }
+
+    girisFormu.addEventListener("submit", async olay => {
+      olay.preventDefault();
+      girisMesaji.textContent = "Giriş yapılıyor…";
+
+      const formVerisi = new FormData(girisFormu);
+
+      try {
+        await apiIste("/api/giris", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eposta: formVerisi.get("eposta"),
+            sifre: formVerisi.get("sifre")
+          })
+        });
+
+        girisFormu.reset();
+        girisMesaji.textContent = "Giriş başarılı.";
+        await oturumuKontrolEt();
+      } catch (hata) {
+        girisMesaji.textContent = hata.message;
+      }
+    });
+
+    cikisDugmesi.addEventListener("click", async () => {
+      try {
+        await apiIste("/api/cikis", { method: "POST" });
+
+        kullaniciAlani.hidden = true;
+        girisFormu.hidden = false;
+        yoneticiMenuDugmesi.hidden = true;
+        yoneticiRaporDugmesi.hidden = true;
+        rezervasyonPaneli.hidden = true;
+        bakiyePaneli.hidden = true;
+        degerlendirmePaneli.hidden = true;
+        yoneticiMenuPaneli.hidden = true;
+        yoneticiRaporPaneli.hidden = true;
+        girisMesaji.textContent = "Oturum kapatıldı.";
+      } catch (hata) {
+        girisMesaji.textContent = hata.message;
+      }
+    });
+
+    async function baslat() {
+      menuTarihAlani.min = yerelBugun();
+      await oturumuKontrolEt();
+
+      try {
+        const veri = await apiIste("/api/menuler");
+        menuler = veri.menuler || [];
+
+        if (menuler.length === 0) {
+          durumAlani.textContent = "Henüz listelenecek menü yok.";
+          return;
+        }
+
+        filtreleriHazirla();
+
+        [tarihSecimi, yemekhaneSecimi, ogunSecimi].forEach(secim => {
+          secim.addEventListener("change", menuListesiniGoster);
+        });
+
+        durumAlani.textContent = "Menüler hazır.";
+        menuListesiniGoster();
+      } catch (hata) {
+        durumAlani.textContent = hata.message;
+      }
+    }
+
+    baslat();
   </script>
 </body>
 </html>
