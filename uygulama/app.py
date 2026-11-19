@@ -1,12 +1,19 @@
+import json
 import os
-from datetime import date
+from datetime import date, datetime, time as datetime_time, timedelta
 from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
 
 import bcrypt
+import redis
 from flask import Flask, jsonify, request, session
+from flask_session import Session
 
 from veri import (
+    alerjen_seceneklerini_getir,
     bakiye_yukle,
+    kullanici_alerjen_secimlerini_getir,
+    kullanici_alerjen_secimlerini_kaydet,
     kullanici_bakiye_ve_hareketleri_getir,
     kullanici_degerlendirme_menuleri_getir,
     kullanici_eposta_ile_getir,
@@ -28,10 +35,135 @@ app.secret_key = os.getenv(
     "yerel-gelistirme-anahtari-degistir",
 )
 
+redis_oturum = redis.Redis(
+    host=os.getenv("REDIS_HOST", "redis"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    db=int(os.getenv("REDIS_DB", "0")),
+)
+
 app.config.update(
+    SESSION_TYPE="redis",
+    SESSION_REDIS=redis_oturum,
+    SESSION_KEY_PREFIX="oturum:",
+    SESSION_PERMANENT=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),
+    SESSION_REFRESH_EACH_REQUEST=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
 )
+
+Session(app)
+app.logger.setLevel("INFO")
+
+ISTANBUL = ZoneInfo("Europe/Istanbul")
+MENU_CACHE_SURUM_ANAHTARI = "menu:cache_version"
+MENU_CACHE_SURUMU = "2"
+
+
+def menu_onbellek_anahtari(yemekhane_id, tarih, ogun_id):
+    return f"menu:{yemekhane_id}:{tarih}:{ogun_id}"
+
+
+def menu_onbellek_suresi(tarih):
+    simdi = datetime.now(ISTANBUL)
+    menu_gunu = date.fromisoformat(str(tarih))
+    gun_sonu = datetime.combine(
+        menu_gunu + timedelta(days=1),
+        datetime_time.min,
+        tzinfo=ISTANBUL,
+    )
+    return max(0, int((gun_sonu - simdi).total_seconds()))
+
+
+def menu_liste_onbellek_anahtari():
+    bugun = datetime.now(ISTANBUL).date().isoformat()
+    return f"menu:liste:{bugun}"
+
+
+def eski_menu_onbelleklerini_temizle():
+    """
+    Eski menü önbelleği yapısını ilk istekte Redis'ten temizler.
+    oturum:* anahtarlarına dokunmaz.
+    """
+    try:
+        surum = redis_oturum.get(MENU_CACHE_SURUM_ANAHTARI)
+
+        if isinstance(surum, bytes):
+            surum = surum.decode("utf-8")
+
+        if surum == MENU_CACHE_SURUMU:
+            return
+
+        anahtarlar = list(redis_oturum.scan_iter(match="menu:*"))
+        korunacak = MENU_CACHE_SURUM_ANAHTARI.encode("utf-8")
+        eski_anahtarlar = [
+            anahtar
+            for anahtar in anahtarlar
+            if anahtar != korunacak
+        ]
+
+        if eski_anahtarlar:
+            redis_oturum.delete(*eski_anahtarlar)
+
+        redis_oturum.set(
+            MENU_CACHE_SURUM_ANAHTARI,
+            MENU_CACHE_SURUMU,
+        )
+        app.logger.info(
+            "MENU_CACHE eski menü kayıtları temizlendi; "
+            "önbellek sürümü %s etkin.",
+            MENU_CACHE_SURUMU,
+        )
+    except Exception:
+        app.logger.exception("Eski menü önbelleği temizlenemedi.")
+
+
+def redis_json_oku(anahtar):
+    icerik = redis_oturum.get(anahtar)
+
+    if icerik is None:
+        return None
+
+    return json.loads(icerik)
+
+
+def redis_json_yaz(anahtar, veri, saniye):
+    if saniye > 0:
+        redis_oturum.set(
+            anahtar,
+            json.dumps(veri, ensure_ascii=False),
+            ex=saniye,
+        )
+
+
+def menu_onbellek_temizle(
+    yemekhane_id=None,
+    tarih=None,
+    ogun_id=None,
+    menu_id=None,
+):
+    silinecek_anahtarlar = [menu_liste_onbellek_anahtari()]
+
+    if (
+        yemekhane_id is not None
+        and tarih is not None
+        and ogun_id is not None
+    ):
+        silinecek_anahtarlar.append(
+            menu_onbellek_anahtari(
+                yemekhane_id,
+                tarih,
+                ogun_id,
+            )
+        )
+
+    if menu_id is not None:
+        silinecek_anahtarlar.append(f"menu:id:{menu_id}")
+
+    try:
+        redis_oturum.delete(*silinecek_anahtarlar)
+    except Exception:
+        app.logger.exception("Menü önbelleği temizlenemedi.")
 
 
 def yonetici_hata_yaniti():
@@ -60,19 +192,76 @@ def ana_sayfa():
 
 @app.get("/api/menuler")
 def menu_dolulukleri():
+    eski_menu_onbelleklerini_temizle()
+    liste_anahtari = menu_liste_onbellek_anahtari()
+
     try:
-        return jsonify({
-            "menuler": menu_doluluklerini_getir(),
-        })
+        onbellek = redis_json_oku(liste_anahtari)
+
+        if onbellek is not None:
+            app.logger.info("MENU_CACHE HIT: %s", liste_anahtari)
+            return jsonify({"menuler": onbellek})
+    except Exception:
+        app.logger.exception("Menü önbelleği okunamadı.")
+
+    try:
+        menuler = menu_doluluklerini_getir()
     except Exception:
         app.logger.exception("Menü dolulukları okunamadı.")
         return jsonify({
             "hata": "Menüler şu anda alınamıyor.",
         }), 503
 
+    try:
+        for menu in menuler:
+            anahtar = menu_onbellek_anahtari(
+                menu["yemekhane_id"],
+                menu["tarih"],
+                menu["ogun_id"],
+            )
+            sure = menu_onbellek_suresi(menu["tarih"])
+
+            if sure > 0:
+                redis_json_yaz(anahtar, {"liste": menu}, sure)
+                redis_oturum.set(
+                    f"menu:id:{menu['menu_id']}",
+                    anahtar,
+                    ex=sure,
+                )
+
+        bugun = datetime.now(ISTANBUL).date().isoformat()
+        liste_suresi = menu_onbellek_suresi(bugun)
+        redis_json_yaz(liste_anahtari, menuler, liste_suresi)
+        app.logger.info(
+            "MENU_CACHE MISS: menüler mysql-replica üzerinden okundu."
+        )
+    except Exception:
+        app.logger.exception("Menü önbelleğine yazılamadı.")
+
+    return jsonify({"menuler": menuler})
+
 
 @app.get("/api/menuler/<int:menu_id>")
 def menu_detayi(menu_id):
+    eski_menu_onbelleklerini_temizle()
+    id_anahtari = f"menu:id:{menu_id}"
+    menu_anahtari = None
+
+    try:
+        menu_anahtari = redis_oturum.get(id_anahtari)
+
+        if isinstance(menu_anahtari, bytes):
+            menu_anahtari = menu_anahtari.decode("utf-8")
+
+        if menu_anahtari:
+            onbellek = redis_json_oku(menu_anahtari)
+
+            if onbellek and onbellek.get("detay") is not None:
+                app.logger.info("MENU_CACHE HIT: %s", menu_anahtari)
+                return jsonify(onbellek["detay"])
+    except Exception:
+        app.logger.exception("Menü ayrıntısı önbelleği okunamadı.")
+
     try:
         yemekler = menu_detayini_getir(menu_id)
 
@@ -82,24 +271,52 @@ def menu_detayi(menu_id):
             }), 404
 
         ilk_yemek = yemekler[0]
-
-        return jsonify({
-            "menu": {
-                "id": menu_id,
-                "tarih": ilk_yemek["tarih"],
-                "yemekhane_id": ilk_yemek["yemekhane_id"],
-                "yemekhane": ilk_yemek["yemekhane"],
-                "ogun_id": ilk_yemek["ogun_id"],
-                "ogun": ilk_yemek["ogun"],
-                "rezervasyon_son": ilk_yemek["rezervasyon_son"],
-                "ogrenci_fiyati": ilk_yemek["ogrenci_fiyati"],
-                "personel_fiyati": ilk_yemek["personel_fiyati"],
-                "toplam_kalori": sum(
-                    yemek["kalori"] for yemek in yemekler
-                ),
-            },
+        menu = {
+            "id": menu_id,
+            "tarih": ilk_yemek["tarih"],
+            "yemekhane_id": ilk_yemek["yemekhane_id"],
+            "yemekhane": ilk_yemek["yemekhane"],
+            "ogun_id": ilk_yemek["ogun_id"],
+            "ogun": ilk_yemek["ogun"],
+            "rezervasyon_son": ilk_yemek["rezervasyon_son"],
+            "ogrenci_fiyati": ilk_yemek["ogrenci_fiyati"],
+            "personel_fiyati": ilk_yemek["personel_fiyati"],
+            "toplam_kalori": sum(
+                yemek["kalori"] for yemek in yemekler
+            ),
+        }
+        yanit = {
+            "menu": menu,
             "yemekler": yemekler,
-        })
+        }
+
+        menu_anahtari = menu_onbellek_anahtari(
+            ilk_yemek["yemekhane_id"],
+            ilk_yemek["tarih"],
+            ilk_yemek["ogun_id"],
+        )
+
+        try:
+            sure = menu_onbellek_suresi(ilk_yemek["tarih"])
+            onbellek = redis_json_oku(menu_anahtari) or {}
+            onbellek["detay"] = yanit
+            redis_json_yaz(menu_anahtari, onbellek, sure)
+
+            if sure > 0:
+                redis_oturum.set(
+                    id_anahtari,
+                    menu_anahtari,
+                    ex=sure,
+                )
+
+            app.logger.info(
+                "MENU_CACHE MISS: menu_id=%s mysql-replica üzerinden okundu.",
+                menu_id,
+            )
+        except Exception:
+            app.logger.exception("Menü ayrıntısı önbelleğe yazılamadı.")
+
+        return jsonify(yanit)
     except Exception:
         app.logger.exception("Menü ayrıntısı okunamadı.")
         return jsonify({
@@ -145,6 +362,7 @@ def giris():
         }), 401
 
     session.clear()
+    session.permanent = True
     session["kullanici"] = {
         "id": kullanici["id"],
         "ad": kullanici["ad"],
@@ -165,6 +383,76 @@ def oturum():
         "oturum_acik": "kullanici" in session,
         "kullanici": session.get("kullanici"),
     })
+
+
+@app.get("/api/profil/alerjenler")
+def profil_alerjenlerini_getir():
+    kullanici = session.get("kullanici")
+
+    if not kullanici:
+        return jsonify({
+            "hata": "Alerjen tercihlerinizi görmek için giriş yapmalısınız.",
+        }), 401
+
+    try:
+        return jsonify({
+            "alerjenler": alerjen_seceneklerini_getir(),
+            "secilen_alerjenler": kullanici_alerjen_secimlerini_getir(
+                kullanici["id"]
+            ),
+        })
+    except Exception:
+        app.logger.exception("Profil alerjenleri okunamadı.")
+        return jsonify({
+            "hata": "Alerjen tercihleri şu anda alınamıyor.",
+        }), 503
+
+
+@app.put("/api/profil/alerjenler")
+def profil_alerjenlerini_guncelle():
+    kullanici = session.get("kullanici")
+
+    if not kullanici:
+        return jsonify({
+            "hata": "Alerjen tercihlerinizi kaydetmek için giriş yapmalısınız.",
+        }), 401
+
+    veri = request.get_json(silent=True)
+
+    if not isinstance(veri, dict):
+        return jsonify({
+            "hata": "Alerjen tercihleri geçersiz.",
+        }), 400
+
+    alerjen_idleri = veri.get("alerjen_idleri")
+
+    if not isinstance(alerjen_idleri, list):
+        return jsonify({
+            "hata": "Alerjen seçimleri liste olmalıdır.",
+        }), 400
+
+    if any(isinstance(deger, bool) for deger in alerjen_idleri):
+        return jsonify({
+            "hata": "Geçersiz alerjen seçimi.",
+        }), 400
+
+    try:
+        secilen_idler = kullanici_alerjen_secimlerini_kaydet(
+            kullanici["id"],
+            alerjen_idleri,
+        )
+        return jsonify({
+            "ok": True,
+            "mesaj": "Alerjen tercihleriniz kaydedildi.",
+            "secilen_alerjen_idleri": secilen_idler,
+        })
+    except ValueError as hata:
+        return jsonify({"hata": str(hata)}), 400
+    except Exception:
+        app.logger.exception("Profil alerjenleri kaydedilemedi.")
+        return jsonify({
+            "hata": "Alerjen tercihleri kaydedilemedi.",
+        }), 400
 
 
 @app.get("/api/bakiye")
@@ -356,8 +644,20 @@ def rezervasyon_olustur():
             "hata": "Geçerli bir menü seçmelisiniz.",
         }), 400
 
+    porsiyon = veri.get("porsiyon", "tam")
+
+    if porsiyon not in ("tam", "yarim"):
+        return jsonify({
+            "hata": "Tam veya yarım porsiyon seçmelisiniz.",
+        }), 400
+
     try:
-        sonuc = rezervasyon_yap(kullanici["id"], menu_id)
+        sonuc = rezervasyon_yap(
+            kullanici["id"],
+            menu_id,
+            porsiyon,
+        )
+        menu_onbellek_temizle()
 
         return jsonify({
             "ok": True,
@@ -368,7 +668,7 @@ def rezervasyon_olustur():
         app.logger.exception("Rezervasyon oluşturulamadı.")
         return jsonify({
             "hata": (
-                "Rezervasyon yapılamadı. Bakiye, kapasite ve "
+                "Rezervasyon yapılamadı. Porsiyon, bakiye, kapasite ve "
                 "rezervasyon süresini kontrol edin."
             ),
         }), 400
@@ -420,6 +720,8 @@ def rezervasyon_iptal(rezervasyon_id):
             for alan in ("iade", "bakiye"):
                 if sonuc.get(alan) is not None:
                     sonuc[alan] = float(sonuc[alan])
+
+        menu_onbellek_temizle()
 
         return jsonify({
             "ok": True,
@@ -529,6 +831,13 @@ def yonetici_menu_ekle():
             ogrenci_fiyati,
             personel_fiyati,
             yemek_idleri,
+        )
+
+        menu_onbellek_temizle(
+            yemekhane_id,
+            tarih,
+            ogun_id,
+            sonuc.get("menu_id"),
         )
 
         return jsonify({

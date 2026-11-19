@@ -136,14 +136,14 @@ def kullanici_eposta_ile_getir(eposta):
         baglanti.close()
 
 
-def rezervasyon_yap(kullanici_id, menu_id):
+def rezervasyon_yap(kullanici_id, menu_id, porsiyon):
     baglanti = _baglanti_ac(yazma=True)
 
     try:
         with baglanti.cursor() as imlec:
             imlec.execute(
-                "CALL sp_rezervasyon_yap(%s, %s)",
-                (kullanici_id, menu_id),
+                "CALL sp_rezervasyon_yap(%s, %s, %s)",
+                (kullanici_id, menu_id, porsiyon),
             )
             return imlec.fetchone()
     finally:
@@ -161,6 +161,7 @@ def kullanici_rezervasyonlarini_getir(kullanici_id):
                     r.menu_id,
                     r.durum,
                     r.ucret,
+                    r.porsiyon,
                     DATE_FORMAT(m.tarih, '%%Y-%%m-%%d') AS tarih,
                     yh.ad AS yemekhane,
                     o.ad AS ogun,
@@ -319,6 +320,108 @@ def kullanici_degerlendirme_menuleri_getir(kullanici_id):
                 LIMIT 100
             """, (kullanici_id,))
             return imlec.fetchall()
+    finally:
+        baglanti.close()
+
+
+def kullanici_alerjen_secimlerini_getir(kullanici_id):
+    """Kullanıcının seçtiği alerjen kimliklerini ve adlarını döndürür."""
+    baglanti = _baglanti_ac(yazma=True)
+
+    try:
+        with baglanti.cursor() as imlec:
+            imlec.execute("""
+                SELECT
+                    a.id,
+                    a.ad
+                FROM kullanici_alerjenleri ka
+                JOIN alerjenler a ON a.id = ka.alerjen_id
+                WHERE ka.kullanici_id = %s
+                ORDER BY a.ad
+            """, (kullanici_id,))
+            return imlec.fetchall()
+    finally:
+        baglanti.close()
+
+
+def alerjen_seceneklerini_getir():
+    """Profil formunda seçilebilecek alerjenleri döndürür."""
+    baglanti = _baglanti_ac()
+
+    try:
+        with baglanti.cursor() as imlec:
+            imlec.execute("""
+                SELECT id, ad
+                FROM alerjenler
+                ORDER BY ad
+            """)
+            return imlec.fetchall()
+    finally:
+        baglanti.close()
+
+
+def kullanici_alerjen_secimlerini_kaydet(kullanici_id, alerjen_idleri):
+    """Kullanıcının alerjen tercihlerini seçilen listeyle değiştirir."""
+    if not isinstance(alerjen_idleri, list):
+        raise ValueError("Alerjen seçimleri liste olmalıdır.")
+
+    try:
+        secilen_idler = sorted({
+            int(alerjen_id)
+            for alerjen_id in alerjen_idleri
+        })
+    except (TypeError, ValueError):
+        raise ValueError("Geçersiz alerjen seçimi.") from None
+
+    if any(alerjen_id <= 0 for alerjen_id in secilen_idler):
+        raise ValueError("Geçersiz alerjen seçimi.")
+
+    baglanti = _baglanti_ac(yazma=True, autocommit=False)
+
+    try:
+        with baglanti.cursor() as imlec:
+            if secilen_idler:
+                yer_tutucular = ", ".join(
+                    ["%s"] * len(secilen_idler)
+                )
+                imlec.execute(
+                    f"""
+                    SELECT id
+                    FROM alerjenler
+                    WHERE id IN ({yer_tutucular})
+                    """,
+                    tuple(secilen_idler),
+                )
+                bulunan_idler = {
+                    int(satir["id"])
+                    for satir in imlec.fetchall()
+                }
+
+                if bulunan_idler != set(secilen_idler):
+                    raise ValueError("Listede geçersiz alerjen var.")
+
+            imlec.execute("""
+                DELETE FROM kullanici_alerjenleri
+                WHERE kullanici_id = %s
+            """, (kullanici_id,))
+
+            if secilen_idler:
+                imlec.executemany("""
+                    INSERT INTO kullanici_alerjenleri (
+                        kullanici_id,
+                        alerjen_id
+                    )
+                    VALUES (%s, %s)
+                """, [
+                    (kullanici_id, alerjen_id)
+                    for alerjen_id in secilen_idler
+                ])
+
+        baglanti.commit()
+        return secilen_idler
+    except Exception:
+        baglanti.rollback()
+        raise
     finally:
         baglanti.close()
 

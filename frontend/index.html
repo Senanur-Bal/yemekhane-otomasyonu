@@ -1519,5 +1519,226 @@
 
     baslat();
   </script>
+
+  <script>
+    (() => {
+      let porsiyon = "tam";
+      let seciliAlerjenler = new Set();
+      const apiIsteEski = apiIste;
+
+      apiIste = async function(url, ayarlar = {}) {
+        if (url === "/api/rezervasyonlar" && ayarlar.method === "POST") {
+          let body = {};
+          try {
+            body = JSON.parse(ayarlar.body || "{}");
+          } catch (_) {}
+          body.porsiyon = porsiyon;
+          ayarlar = { ...ayarlar, body: JSON.stringify(body) };
+        }
+
+        return apiIsteEski(url, ayarlar);
+      };
+
+      const profilDugmesi = document.createElement("button");
+      profilDugmesi.type = "button";
+      profilDugmesi.textContent = "Alerjen tercihlerim";
+      profilDugmesi.id = "alerjen-profili-dugmesi";
+
+      const cikis = document.getElementById("cikis-dugmesi");
+      cikis?.before(profilDugmesi);
+
+      const profil = document.createElement("section");
+      profil.className = "panel";
+      profil.id = "alerjen-profili";
+      profil.hidden = true;
+      profil.innerHTML =
+        '<div class="panel-baslik">' +
+        '<h3>Alerjen tercihlerim</h3>' +
+        '<button class="panel-dugmesi" type="button" id="alerjen-profili-yenile">Yenile</button>' +
+        '</div>' +
+        '<p>Kaçınmak istediğiniz alerjenleri seçin. Eşleşen yemekler menü ayrıntılarında uyarıyla gösterilir.</p>' +
+        '<div id="alerjen-secimleri" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"></div>' +
+        '<button type="button" id="alerjenleri-kaydet">Tercihleri kaydet</button>' +
+        '<p id="alerjen-profili-mesaj" role="status"></p>';
+
+      document.querySelector("main.sayfa")?.prepend(profil);
+
+      async function profilYukle() {
+        const secimler = document.getElementById("alerjen-secimleri");
+        const mesaj = document.getElementById("alerjen-profili-mesaj");
+
+        if (!secimler) return;
+
+        try {
+          const d = await apiIsteEski("/api/profil/alerjenler");
+          const secenekler =
+            d.alerjenler || d.secenekler || d.tum_alerjenler || [];
+          const secili =
+            d.alerjen_idler ||
+            d.secilen_alerjen_idleri ||
+            d.secilen_alerjenler ||
+            d.secili_alerjenler ||
+            [];
+
+          seciliAlerjenler = new Set(
+            secili.map(x => Number(typeof x === "object" ? x.id : x))
+          );
+
+          secimler.replaceChildren();
+
+          secenekler.forEach(a => {
+            const id = Number(a.id ?? a.alerjen_id);
+            const label = document.createElement("label");
+            label.style.cssText =
+              "display:flex;align-items:center;gap:8px;padding:8px;" +
+              "border:1px solid #d7e3db;border-radius:8px";
+
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.value = id;
+            input.checked = seciliAlerjenler.has(id);
+            input.addEventListener("change", () => {
+              if (input.checked) {
+                seciliAlerjenler.add(id);
+              } else {
+                seciliAlerjenler.delete(id);
+              }
+            });
+
+            const name = document.createElement("span");
+            name.textContent = a.ad || a.alerjen || `Alerjen ${id}`;
+
+            label.append(input, name);
+            secimler.appendChild(label);
+          });
+
+          mesaj.textContent = secenekler.length
+            ? ""
+            : "Alerjen seçeneği bulunamadı.";
+        } catch (hata) {
+          mesaj.textContent = hata.message;
+        }
+      }
+
+      profilDugmesi.addEventListener("click", async () => {
+        profil.hidden = !profil.hidden;
+
+        if (!profil.hidden) {
+          await profilYukle();
+          profil.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+
+      document
+        .getElementById("alerjen-profili-yenile")
+        ?.addEventListener("click", profilYukle);
+
+      document
+        .getElementById("alerjenleri-kaydet")
+        ?.addEventListener("click", async () => {
+          const mesaj = document.getElementById("alerjen-profili-mesaj");
+
+          try {
+            await apiIsteEski("/api/profil/alerjenler", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                alerjen_idleri: [...seciliAlerjenler]
+              })
+            });
+
+            mesaj.textContent = "Alerjen tercihleriniz kaydedildi.";
+          } catch (hata) {
+            mesaj.textContent = hata.message;
+          }
+        });
+
+      const menuDetayEski = menuDetayiniGoster;
+
+      menuDetayiniGoster = async function(menuId) {
+        porsiyon = "tam";
+        await menuDetayEski(menuId);
+
+        const root = document.getElementById("menu-detay");
+        if (!root) return;
+
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Porsiyon seçimi");
+        select.style.cssText =
+          "display:block;margin:12px 0;padding:10px;max-width:260px";
+
+        const tam = document.createElement("option");
+        tam.value = "tam";
+        tam.textContent = "Tam porsiyon";
+
+        const yarim = document.createElement("option");
+        yarim.value = "yarim";
+        yarim.textContent = "Yarım porsiyon (%60 ücret)";
+
+        select.append(tam);
+
+        const title = root.querySelector("h3");
+        if (
+          !title ||
+          !title.textContent.toLocaleLowerCase("tr-TR").includes("kahvaltı")
+        ) {
+          select.append(yarim);
+        }
+
+        select.addEventListener("change", () => {
+          porsiyon = select.value;
+        });
+
+        const reserve = [...root.querySelectorAll("button")].find(button =>
+          button.textContent.includes("rezerve et")
+        );
+
+        if (reserve && !reserve.dataset.porsiyonAdded) {
+          reserve.before(select);
+          reserve.dataset.porsiyonAdded = "1";
+        }
+
+        const foods = root.querySelectorAll(".yemek-listesi li");
+
+        foods.forEach(food => {
+          food.querySelectorAll(".alerjen-uyarisi").forEach(warning => {
+            warning.remove();
+          });
+
+          const allergenLine = [...food.querySelectorAll("small")].find(
+            item => item.textContent.startsWith("Alerjenler:")
+          );
+
+          if (!allergenLine || !seciliAlerjenler.size) return;
+
+          const named = allergenLine.textContent
+            .replace("Alerjenler:", "")
+            .trim()
+            .split(",")
+            .map(name => name.trim().toLocaleLowerCase("tr-TR"));
+
+          const selectedNames = [
+            ...document.querySelectorAll("#alerjen-secimleri label")
+          ]
+            .filter(label => label.querySelector("input")?.checked)
+            .map(label =>
+              label.textContent.trim().toLocaleLowerCase("tr-TR")
+            );
+
+          const match = named.some(name => selectedNames.includes(name));
+
+          if (match) {
+            const warning = document.createElement("strong");
+            warning.className = "alerjen-uyarisi";
+            warning.textContent =
+              "⚠ Seçtiğiniz alerjenlerden birini içeriyor.";
+            warning.style.cssText =
+              "display:block;color:#a12c2c;margin-top:6px";
+            food.appendChild(warning);
+          }
+        });
+      };
+    })();
+  </script>
 </body>
 </html>

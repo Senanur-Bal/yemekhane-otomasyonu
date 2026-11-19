@@ -248,6 +248,72 @@ docker compose exec -T mysql-primary mysql -uroot -pyemekhane_kok yemekhane < db
 
 Replikaya ayrıca uygulamayın; değişiklik replikasyonla geçer. `03` numarası boş bırakılmıştır.
 
+## Aşama 4: Değişiklik talebi
+
+Migration dosyası `db/init/04_degisiklik.sql` konumundadır. İlk kurulumda `db/init/` altındaki SQL dosyaları çalıştırılır. Çalışan veritabanında migration `mysql-primary` üzerinde bir kez uygulandı; replikaya ayrıca uygulanmadı.
+
+### Yarım porsiyon
+
+`rezervasyonlar` tablosuna `porsiyon` sütunu eklendi. Değerler `tam` ve `yarim` olabilir; varsayılan `tam` olduğu için geçmiş rezervasyonlar tam porsiyon sayılır. Migration sonrasında yapılan kontrolde 368 rezervasyonun tamamı `tam` olarak göründü.
+
+Yarım porsiyon öğle ve akşam menülerinde seçilebilir ve tam ücretin %60’ı olarak hesaplanır. Kahvaltıda yarım 
+porsiyon seçeneği yoktur.
+
+### Yarım porsiyon ücret doğrulaması
+
+19 Kasım 2026 tarihli Merkez Yemekhane akşam menüsü, yarım porsiyon seçilerek rezerve edildi. Öğrenci tam porsiyon fiyatı 40 TL, yarım porsiyon ücreti 24 TL (%60) olarak gösterildi. Rezervasyon başarıyla oluşturuldu ve işlem sonrası bakiye 776 TL oldu.
+
+**Yarım porsiyon rezervasyonunun ekran görüntüsü:**
+
+![Yarım porsiyon rezervasyonu: 24 TL ücret ve güncel bakiye](docs/gorseller/dogrulama.jpeg)
+
+### Alerjen tercihleri
+
+`kullanici_alerjenleri` tablosu kullanıcıların profil alerjen tercihlerini saklar. Kullanıcı profilden alerjen seçip kaydedebilir. Seçilen alerjenleri içeren yemekler menü ayrıntılarında uyarıyla gösterilir.
+
+Arayüzde Gluten tercihi kaydedildi; Gluten içeren Simit, Bulgur Pilavı ve İrmik Helvası için uyarı görüntülendi.
+
+### Migration ve replika doğrulaması
+
+Replikada tablo ve porsiyon sütunu şu komutla doğrulandı:
+
+```text
+Komut:
+docker compose exec -T mysql-replica mysql -uroot -pyemekhane_kok yemekhane -e "SHOW CREATE TABLE kullanici_alerjenleri; SHOW COLUMNS FROM rezervasyonlar LIKE 'porsiyon';"
+
+Çıktı:
+kullanici_alerjenleri tablosu oluşturuldu.
+rezervasyonlar.porsiyon: enum('tam','yarim'), NOT NULL, varsayılan 'tam'
+```
+
+### Redis önbelleği
+
+Uygulama günlüğünde eski menü önbellek kayıtlarının temizlendiği görüldü:
+
+```text
+MENU_CACHE eski menü kayıtları temizlendi; önbellek sürümü 2 etkin.
+```
+
+Temizlik `oturum:*` kullanıcı oturum anahtarlarına dokunmaz.
+
+### Arayüz doğrulama görüntüleri
+
+**Alerjen tercihi:** Kullanıcı profilinde Gluten seçilip kaydedildi.
+
+![Gluten alerjen tercihinin profilden kaydedilmesi](docs/gorseller/alerjen.jpeg)
+
+**Öğle menüsü:** Gluten içeren yemekler uyarıyla gösteriliyor.
+
+![Öğle menüsünde alerjen uyarıları](docs/gorseller/ogle.jpeg)
+
+**Akşam menüsü:** Yarım porsiyon seçeneği kullanılabiliyor ve seçilen alerjen için uyarı gösteriliyor.
+
+![Akşam menüsünde yarım porsiyon ve alerjen uyarısı](docs/gorseller/aksam.jpeg)
+
+**Kahvaltı menüsü:** Yarım porsiyon seçeneği sunulmuyor; alerjen içeren yemek uyarıyla belirtiliyor.
+
+![Kahvaltıda tam porsiyon seçeneği ve alerjen uyarısı](docs/gorseller/kahvaltı.jpeg)
+
 ## Sıfırlama
 
 ```bash
