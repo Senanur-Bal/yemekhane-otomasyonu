@@ -184,6 +184,59 @@ Windows PowerShell'de de aynı komutlar çalışır. Parola komut satırında ku
 - Redis `PING` komutuna `PONG` yanıtı verdi.
 - Web arayüzü `http://localhost:8080` adresinde açıldı.
 
+## Aşama 3: Redis doğrulaması
+
+Redis, menü önbelleği ve kullanıcı oturumlarını saklamak için kullanılır.
+
+### Oturum
+
+Giriş yapıldığında Redis’te `oturum:*` anahtarı oluştu. Oturumun TTL değeri ilk kontrolde 1702 saniye, sayfa yenilendikten sonra 1795 saniye olarak görüldü. Böylece oturum süresinin isteklerden sonra yenilendiği doğrulandı. Uygulama container’ı yeniden başlatıldıktan sonra da kullanıcı oturumu açık kaldı.
+
+Oturum anahtarının gerçek değeri güvenlik nedeniyle gizlenmiştir.
+
+```text
+Komut: docker compose exec -T redis redis-cli --scan --pattern "oturum:*"
+Çıktı: oturum:<anahtar gizlendi>
+
+Komut: docker compose exec -T redis redis-cli TTL $oturumAnahtari
+Çıktı: 1702
+
+Sayfa yenilendikten sonraki TTL çıktısı: 1795
+```
+
+### Menü önbelleği
+
+Menü listesine yapılan ilk istekte uygulama günlüğünde `MENU_CACHE MISS`, sonraki istekte `MENU_CACHE HIT` görüldü. Böylece ilk okumanın `mysql-replica` üzerinden, sonraki okumanın Redis’ten yapıldığı doğrulandı.
+
+```text
+MENU_CACHE MISS: menüler mysql-replica üzerinden okundu.
+MENU_CACHE HIT: menu:liste:2026-11-18
+```
+
+Redis’te `menu:*` anahtarları listelendi. Aşağıda listeden örnek anahtarlar yer alıyor:
+
+```text
+Komut: docker compose exec -T redis redis-cli --scan --pattern "menu:*"
+Örnek çıktılar:
+menu:1:2026-11-18:1
+menu:1:2026-11-18:2
+menu:1:2026-11-18:3
+menu:2:2026-11-18:1
+menu:liste:2026-11-18
+menu:id:85
+```
+
+26 Kasım 2026 tarihli menü anahtarı için TTL kontrolü:
+
+```text
+Komut: docker compose exec -T redis redis-cli TTL "menu:1:2026-11-26:2"
+Çıktı: 710263
+```
+
+Menü önbelleği, menünün tarihinin sonuna kadar saklanacak şekilde süreli oluşturulur. Yönetici yeni menü oluşturduğunda liste önbelleği temizlenir. Arayüz yenilendiğinde güncel menü listesi veritabanından tekrar alınır.
+
+Yönetici 26 Kasım 2026 tarihli 86 numaralı menüyü oluşturdu. Menü arayüzde gösterildi. 
+
 ## Migration (Aşama 4)
 
 `04_degisiklik.sql` dosyasını `db/init/` klasörüne koyun. Böylece depoyu sıfırdan kuran biri
